@@ -1561,6 +1561,7 @@ class TestClassBuilder(object):
             None,
             False,
             None,
+            False,
         )
 
         assert "<_ClassBuilder(cls=C)>" == repr(b)
@@ -1588,6 +1589,7 @@ class TestClassBuilder(object):
             None,
             False,
             None,
+            False,
         )
 
         cls = (
@@ -1668,6 +1670,7 @@ class TestClassBuilder(object):
             on_setattr=None,
             has_custom_setattr=False,
             field_transformer=None,
+            match_args=False,
         )
         b._cls = {}  # no __module__; no __qualname__
 

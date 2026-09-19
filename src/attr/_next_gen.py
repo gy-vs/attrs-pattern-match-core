@@ -32,6 +32,7 @@ def define(
     getstate_setstate=None,
     on_setattr=None,
     field_transformer=None,
+    match_args=True,
 ):
     r"""
     The only behavioral differences are the handling of the *auto_attribs*
@@ -47,7 +48,10 @@ def define(
 
     and that mutable classes (``frozen=False``) validate on ``__setattr__``.
 
+    *match_args* defaults to ``True`` on Python 3.10 and later.
+
     .. versionadded:: 20.1.0
+    .. versionchanged:: 21.3.0 *match_args* added
     """
 
     def do_it(cls, auto_attribs):
@@ -72,6 +76,7 @@ def define(
             getstate_setstate=getstate_setstate,
             on_setattr=on_setattr,
             field_transformer=field_transformer,
+            match_args=match_args,
         )
 
     def wrap(cls):

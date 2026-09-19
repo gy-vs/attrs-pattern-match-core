@@ -13,6 +13,7 @@ from operator import itemgetter
 from . import _config, setters
 from ._compat import (
     PY2,
+    PY310,
     PYPY,
     isclass,
     iteritems,
@@ -633,6 +634,14 @@ def _frozen_delattrs(self, name):
     raise FrozenInstanceError()
 
 
+def _is_positional_init_attr(attribute):
+    """
+    Check whether *attribute* becomes a positional parameter in generated
+    init.
+    """
+    return attribute.kw_only is False and attribute.init is not False
+
+
 class _ClassBuilder(object):
     """
     Iteratively build *one* class.
@@ -651,6 +660,7 @@ class _ClassBuilder(object):
         "_has_pre_init",
         "_has_post_init",
         "_is_exc",
+        "_match_args",
         "_on_setattr",
         "_slots",
         "_weakref_slot",
@@ -674,6 +684,7 @@ class _ClassBuilder(object):
         on_setattr,
         has_custom_setattr,
         field_transformer,
+        match_args,
     ):
         attrs, base_attrs, base_map = _transform_attrs(
             cls,
@@ -698,6 +709,7 @@ class _ClassBuilder(object):
         self._has_post_init = bool(getattr(cls, "__attrs_post_init__", False))
         self._delete_attribs = not bool(these)
         self._is_exc = is_exc
+        self._match_args = match_args
         self._on_setattr = on_setattr
 
         self._has_custom_setattr = has_custom_setattr
@@ -973,6 +985,21 @@ class _ClassBuilder(object):
 
         return self
 
+    def add_match_args(self):
+        """
+        Add ``__match_args__`` for positional structural pattern matching.
+        """
+        if not PY310 or not self._match_args:
+            return self
+
+        self._cls_dict["__match_args__"] = tuple(
+            a.name
+            for a in self._attrs
+            if _is_positional_init_attr(a)
+        )
+
+        return self
+
     def add_attrs_init(self):
         self._cls_dict["__attrs_init__"] = self._add_method_dunders(
             _make_init(
@@ -1198,6 +1225,7 @@ def attrs(
     getstate_setstate=None,
     on_setattr=None,
     field_transformer=None,
+    match_args=True,
 ):
     r"""
     A class decorator that adds `dunder
@@ -1294,6 +1322,13 @@ def attrs(
         injected instead. This allows you to define a custom ``__init__``
         method that can do pre-init work such as ``super().__init__()``,
         and then call ``__attrs_init__()`` and ``__attrs_post_init__()``.
+    :param bool match_args: Create a ``__match_args__`` tuple for structural
+        pattern matching (Python 3.10 and later). The order matches the
+        positional parameters of the generated initializer. Attributes that
+        are keyword-only or excluded from the initializer are omitted. An
+        explicitly defined ``__match_args__`` is preserved; set this to
+        ``False`` to avoid generating one. On runtimes without structural
+        pattern matching, this option has no effect.
     :param bool slots: Create a `slotted class <slotted classes>` that's more
         memory-efficient. Slotted classes are generally superior to the default
         dict classes, but have some gotchas you should know about, so we
@@ -1446,6 +1481,7 @@ def attrs(
        ``init=False`` injects ``__attrs_init__``
     .. versionchanged:: 21.1.0 Support for ``__attrs_pre_init__``
     .. versionchanged:: 21.1.0 *cmp* undeprecated
+    .. versionadded:: 21.3.0 *match_args*
     """
     if auto_detect and PY2:
         raise PythonTooOldError(
@@ -1493,6 +1529,7 @@ def attrs(
             on_setattr,
             has_own_setattr,
             field_transformer,
+            match_args,
         )
         if _determine_whether_to_implement(
             cls, repr, auto_detect, ("__repr__",)
@@ -1561,6 +1598,11 @@ def attrs(
                     "Invalid value for cache_hash.  To use hash caching,"
                     " init must be True."
                 )
+
+        if PY310 and match_args and not _has_own_attribute(
+            cls, "__match_args__"
+        ):
+            builder.add_match_args()
 
         return builder.build_class()
 
