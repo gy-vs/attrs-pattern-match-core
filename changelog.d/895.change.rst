@@ -1,0 +1,1 @@
+``attr.ib`` / ``attrs.field`` gained an *alias* argument that renames the generated ``__init__`` parameter while keeping the attribute accessible under its real name. The alias is validated (valid identifier, matching private/public prefix, no duplicates) and never appears in ``__match_args__``.

@@ -1,0 +1,2 @@
+``attr.s`` and ``attrs.define`` (and friends) now generate ``__match_args__``, so instances can be destructured by positional patterns in Python 3.10's ``match`` statement.
+Generation is controlled by the new *match_args* argument: it is on by default on Python 3.10 and later (unless ``__match_args__`` is defined by the user), can be forced with ``match_args=True`` (a user-defined value then raises ``ValueError``), or disabled with ``match_args=False``.

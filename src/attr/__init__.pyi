@@ -160,6 +160,7 @@ def attrib(
     eq: Optional[_EqOrderType] = ...,
     order: Optional[_EqOrderType] = ...,
     on_setattr: Optional[_OnSetAttrArgType] = ...,
+    alias: Optional[str] = ...,
 ) -> Any: ...
 
 # This form catches an explicit None or no default and infers the type from the
@@ -180,6 +181,7 @@ def attrib(
     eq: Optional[_EqOrderType] = ...,
     order: Optional[_EqOrderType] = ...,
     on_setattr: Optional[_OnSetAttrArgType] = ...,
+    alias: Optional[str] = ...,
 ) -> _T: ...
 
 # This form catches an explicit default argument.
@@ -199,6 +201,7 @@ def attrib(
     eq: Optional[_EqOrderType] = ...,
     order: Optional[_EqOrderType] = ...,
     on_setattr: Optional[_OnSetAttrArgType] = ...,
+    alias: Optional[str] = ...,
 ) -> _T: ...
 
 # This form covers type=non-Type: e.g. forward references (str), Any
@@ -218,6 +221,7 @@ def attrib(
     eq: Optional[_EqOrderType] = ...,
     order: Optional[_EqOrderType] = ...,
     on_setattr: Optional[_OnSetAttrArgType] = ...,
+    alias: Optional[str] = ...,
 ) -> Any: ...
 @overload
 def field(
@@ -234,6 +238,7 @@ def field(
     eq: Optional[bool] = ...,
     order: Optional[bool] = ...,
     on_setattr: Optional[_OnSetAttrArgType] = ...,
+    alias: Optional[str] = ...,
 ) -> Any: ...
 
 # This form catches an explicit None or no default and infers the type from the
@@ -253,6 +258,7 @@ def field(
     eq: Optional[_EqOrderType] = ...,
     order: Optional[_EqOrderType] = ...,
     on_setattr: Optional[_OnSetAttrArgType] = ...,
+    alias: Optional[str] = ...,
 ) -> _T: ...
 
 # This form catches an explicit default argument.
@@ -271,6 +277,7 @@ def field(
     eq: Optional[_EqOrderType] = ...,
     order: Optional[_EqOrderType] = ...,
     on_setattr: Optional[_OnSetAttrArgType] = ...,
+    alias: Optional[str] = ...,
 ) -> _T: ...
 
 # This form covers type=non-Type: e.g. forward references (str), Any
@@ -289,6 +296,7 @@ def field(
     eq: Optional[_EqOrderType] = ...,
     order: Optional[_EqOrderType] = ...,
     on_setattr: Optional[_OnSetAttrArgType] = ...,
+    alias: Optional[str] = ...,
 ) -> Any: ...
 @overload
 @__dataclass_transform__(order_default=True, field_descriptors=(attrib, field))
@@ -315,6 +323,7 @@ def attrs(
     getstate_setstate: Optional[bool] = ...,
     on_setattr: Optional[_OnSetAttrArgType] = ...,
     field_transformer: Optional[_FieldTransformer] = ...,
+    match_args: Optional[bool] = ...,
 ) -> _C: ...
 @overload
 @__dataclass_transform__(order_default=True, field_descriptors=(attrib, field))
@@ -341,6 +350,7 @@ def attrs(
     getstate_setstate: Optional[bool] = ...,
     on_setattr: Optional[_OnSetAttrArgType] = ...,
     field_transformer: Optional[_FieldTransformer] = ...,
+    match_args: Optional[bool] = ...,
 ) -> Callable[[_C], _C]: ...
 @overload
 @__dataclass_transform__(field_descriptors=(attrib, field))
@@ -365,6 +375,7 @@ def define(
     getstate_setstate: Optional[bool] = ...,
     on_setattr: Optional[_OnSetAttrArgType] = ...,
     field_transformer: Optional[_FieldTransformer] = ...,
+    match_args: Optional[bool] = ...,
 ) -> _C: ...
 @overload
 @__dataclass_transform__(field_descriptors=(attrib, field))
@@ -389,6 +400,7 @@ def define(
     getstate_setstate: Optional[bool] = ...,
     on_setattr: Optional[_OnSetAttrArgType] = ...,
     field_transformer: Optional[_FieldTransformer] = ...,
+    match_args: Optional[bool] = ...,
 ) -> Callable[[_C], _C]: ...
 
 mutable = define
@@ -433,6 +445,7 @@ def make_class(
     collect_by_mro: bool = ...,
     on_setattr: Optional[_OnSetAttrArgType] = ...,
     field_transformer: Optional[_FieldTransformer] = ...,
+    match_args: Optional[bool] = ...,
 ) -> type: ...
 
 # _funcs --

@@ -13,6 +13,7 @@ from operator import itemgetter
 from . import _config, setters
 from ._compat import (
     PY2,
+    PY310,
     PYPY,
     isclass,
     iteritems,
@@ -130,6 +131,7 @@ def attrib(
     eq=None,
     order=None,
     on_setattr=None,
+    alias=None,
 ):
     """
     Create a new attribute on a class.
@@ -237,6 +239,17 @@ def attrib(
         attribute -- regardless of the setting in `attr.s`.
     :type on_setattr: `callable`, or a list of callables, or `None`, or
         `attr.setters.NO_OP`
+    :param str alias: The name of the __init__ parameter for this attribute.
+
+        If the attribute is public (i.e. its name doesn't start with an
+        underscore), this must be a valid public Python identifier.
+        Private attributes may also be aliased to private names.
+
+        .. note::
+
+           The alias only affects the generated ``__init__``.  The attribute
+           keeps being accessible under its original name and therefore
+           ``__match_args__`` always contains the original attribute name.
 
     .. versionadded:: 15.2.0 *convert*
     .. versionadded:: 16.3.0 *metadata*
@@ -259,6 +272,7 @@ def attrib(
     .. versionchanged:: 21.1.0
        *eq*, *order*, and *cmp* also accept a custom callable
     .. versionchanged:: 21.1.0 *cmp* undeprecated
+    .. versionadded:: 22.2.0 *alias*
     """
     eq, eq_key, order, order_key = _determine_attrib_eq_order(
         cmp, eq, order, True
@@ -308,6 +322,7 @@ def attrib(
         order=order,
         order_key=order_key,
         on_setattr=on_setattr,
+        alias=alias,
     )
 
 
@@ -598,7 +613,51 @@ def _transform_attrs(
 
     if field_transformer is not None:
         attrs = field_transformer(cls, attrs)
+
+    _validate_aliases(attrs)
+
     return _Attributes((attrs, base_attrs, base_attr_map))
+
+
+def _validate_aliases(attrs):
+    """
+    Ensure that aliases are valid and unique.
+    """
+    seen = {}
+    for a in attrs:
+        if a.alias is not None:
+            if not isinstance(a.alias, str):
+                raise ValueError(
+                    "Alias of {} must be a string.".format(a.name)
+                )
+            if not a.alias.isidentifier():
+                raise ValueError(
+                    "Alias of {} must be a valid Python identifier.".format(
+                        a.name
+                    )
+                )
+            private_alias = a.alias.startswith("_")
+            private_attr = a.name.startswith("_")
+            if private_alias and not private_attr:
+                raise ValueError(
+                    "Aliases of public attributes can't be private: "
+                    "{} -> {}".format(a.name, a.alias)
+                )
+            if private_attr and not private_alias:
+                raise ValueError(
+                    "Aliases of private attributes must be private too: "
+                    "{} -> {}".format(a.name, a.alias)
+                )
+            arg_name = a.alias
+        else:
+            arg_name = a.name.lstrip("_")
+
+        if arg_name in seen:
+            raise ValueError(
+                "Attributes {!r} and {!r} have the same __init__ argument "
+                "name {!r}.".format(seen[arg_name], a.name, arg_name)
+            )
+        seen[arg_name] = a.name
 
 
 if PYPY:
@@ -992,6 +1051,10 @@ class _ClassBuilder(object):
 
         return self
 
+    def add_match_args(self, match_args):
+        self._cls_dict["__match_args__"] = match_args
+        return self
+
     def add_eq(self):
         cd = self._cls_dict
 
@@ -1175,6 +1238,41 @@ def _determine_whether_to_implement(
     return default
 
 
+def _determine_match_args(cls, attrs, match_args):
+    """
+    Determine whether and with which value ``__match_args__`` should be
+    attached to *cls*.
+
+    Returns a tuple ``(create, match_args)`` where *create* indicates whether
+    attrs should attach the attribute itself and *match_args* is the tuple of
+    field names to attach (or the user-provided value, if it must be kept).
+    """
+    if match_args is False:
+        return False, None
+
+    user_defined = _has_own_attribute(cls, "__match_args__")
+
+    if match_args is True and user_defined:
+        raise ValueError(
+            "__match_args__ is explicitly set on {}. Remove the attribute or "
+            "set match_args=None to keep it.".format(cls.__name__)
+        )
+
+    if user_defined:
+        # match_args is None (True with a user value is handled above):
+        # leave the class alone.
+        return False, None
+
+    if match_args is None and not PY310:
+        return False, None
+
+    return True, tuple(
+        a.name
+        for a in attrs
+        if a.init is True and a.kw_only is False
+    )
+
+
 def attrs(
     maybe_cls=None,
     these=None,
@@ -1198,6 +1296,7 @@ def attrs(
     getstate_setstate=None,
     on_setattr=None,
     field_transformer=None,
+    match_args=None,
 ):
     r"""
     A class decorator that adds `dunder
@@ -1413,6 +1512,22 @@ def attrs(
         this, e.g., to automatically add converters or validators to
         fields based on their types.  See `transform-fields` for more details.
 
+    :param Optional[bool] match_args:
+        If `True`, the new ``__match_args__`` attribute (PEP 634) will be
+        generated.  It lists the names of the fields that are positional in
+        the generated ``__init__``, in the same order, so that instances can
+        be destructured with structural pattern matching.  Fields that are
+        keyword-only or excluded from ``__init__`` (``init=False``) never
+        appear in it.  Only the original attribute names are used -- aliases
+        do not appear.
+
+        If `False`, ``__match_args__`` will never be generated or modified.
+
+        If `None` (the default), it will be generated on Python 3.10 and
+        later, **unless** ``__match_args__`` is defined on the class itself.
+        If `True`, a user-defined ``__match_args__`` is an error.
+        If `False`, a user-defined value is always left untouched.
+
     .. versionadded:: 16.0.0 *slots*
     .. versionadded:: 16.1.0 *frozen*
     .. versionadded:: 16.3.0 *str*
@@ -1446,6 +1561,7 @@ def attrs(
        ``init=False`` injects ``__attrs_init__``
     .. versionchanged:: 21.1.0 Support for ``__attrs_pre_init__``
     .. versionchanged:: 21.1.0 *cmp* undeprecated
+    .. versionadded:: 22.1.0 *match_args*
     """
     if auto_detect and PY2:
         raise PythonTooOldError(
@@ -1513,6 +1629,10 @@ def attrs(
 
         builder.add_setattr()
 
+        create_match_args, match_args_ = _determine_match_args(
+            cls, builder._attrs, match_args
+        )
+
         if (
             hash_ is None
             and auto_detect is True
@@ -1561,6 +1681,9 @@ def attrs(
                     "Invalid value for cache_hash.  To use hash caching,"
                     " init must be True."
                 )
+
+        if create_match_args:
+            builder.add_match_args(match_args_)
 
         return builder.build_class()
 
@@ -2269,7 +2392,7 @@ def _attrs_to_init_script(
         has_on_setattr = a.on_setattr is not None or (
             a.on_setattr is not setters.NO_OP and has_cls_on_setattr
         )
-        arg_name = a.name.lstrip("_")
+        arg_name = a.alias or a.name.lstrip("_")
 
         has_factory = isinstance(a.default, Factory)
         if has_factory and a.default.takes_self:
@@ -2524,6 +2647,7 @@ class Attribute(object):
         "kw_only",
         "inherited",
         "on_setattr",
+        "alias",
     )
 
     def __init__(
@@ -2545,6 +2669,7 @@ class Attribute(object):
         order=None,
         order_key=None,
         on_setattr=None,
+        alias=None,
     ):
         eq, eq_key, order, order_key = _determine_attrib_eq_order(
             cmp, eq_key or eq, order_key or order, True
@@ -2578,6 +2703,7 @@ class Attribute(object):
         bound_setattr("kw_only", kw_only)
         bound_setattr("inherited", inherited)
         bound_setattr("on_setattr", on_setattr)
+        bound_setattr("alias", alias)
 
     def __setattr__(self, name, value):
         raise FrozenInstanceError()
@@ -2720,6 +2846,7 @@ class _CountingAttr(object):
         "type",
         "kw_only",
         "on_setattr",
+        "alias",
     )
     __attrs_attrs__ = tuple(
         Attribute(
@@ -2785,6 +2912,7 @@ class _CountingAttr(object):
         order,
         order_key,
         on_setattr,
+        alias,
     ):
         _CountingAttr.cls_counter += 1
         self.counter = _CountingAttr.cls_counter
@@ -2802,6 +2930,7 @@ class _CountingAttr(object):
         self.type = type
         self.kw_only = kw_only
         self.on_setattr = on_setattr
+        self.alias = alias
 
     def validator(self, meth):
         """

@@ -32,6 +32,7 @@ def define(
     getstate_setstate=None,
     on_setattr=None,
     field_transformer=None,
+    match_args=None,
 ):
     r"""
     The only behavioral differences are the handling of the *auto_attribs*
@@ -72,6 +73,7 @@ def define(
             getstate_setstate=getstate_setstate,
             on_setattr=on_setattr,
             field_transformer=field_transformer,
+            match_args=match_args,
         )
 
     def wrap(cls):
@@ -135,6 +137,7 @@ def field(
     eq=None,
     order=None,
     on_setattr=None,
+    alias=None,
 ):
     """
     Identical to `attr.ib`, except keyword-only and with some arguments
@@ -155,4 +158,5 @@ def field(
         eq=eq,
         order=order,
         on_setattr=on_setattr,
+        alias=alias,
     )

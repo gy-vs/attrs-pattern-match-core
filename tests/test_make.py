@@ -226,7 +226,7 @@ class TestTransformAttrs(object):
             "eq=True, eq_key=None, order=True, order_key=None, "
             "hash=None, init=True, "
             "metadata=mappingproxy({}), type=None, converter=None, "
-            "kw_only=False, inherited=False, on_setattr=None)",
+            "kw_only=False, inherited=False, on_setattr=None, alias=None)",
         ) == e.value.args
 
     def test_kw_only(self):
